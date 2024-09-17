@@ -2,6 +2,8 @@ package com.di2win.contaonline.service;
 
 import com.di2win.contaonline.entity.Client;
 import com.di2win.contaonline.exception.client.ClientNotFoundException;
+import com.di2win.contaonline.exception.client.InvalidBirthDateException;
+import com.di2win.contaonline.exception.client.InvalidNameException;
 import com.di2win.contaonline.exception.cpf.CpfAlreadyExistsException;
 import com.di2win.contaonline.exception.cpf.InvalidCpfFormatException;
 import com.di2win.contaonline.repository.ClientRepository;
@@ -18,6 +20,14 @@ public class ClientService {
 
     public Client createClient(Client client) {
         validateCPF(client.getCpf());
+
+        if (client.getNome() == null || client.getNome().trim().isEmpty()) {
+            throw new InvalidNameException("O nome não pode ser nulo ou vazio.");
+        }
+
+        if (client.getDataNascimento() == null) {
+            throw new InvalidBirthDateException("A data de nascimento não pode ser nula.");
+        }
 
         Optional<Client> existingClient = clientRepository.findByCpf(client.getCpf());
         if (existingClient.isPresent()) {
@@ -75,4 +85,7 @@ public class ClientService {
             throw new InvalidCpfFormatException("O segundo dígito verificador do CPF é inválido.");
         }
     }
+
+
+
 }

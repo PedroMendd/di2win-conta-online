@@ -1,6 +1,8 @@
 package com.di2win.contaonline.exception;
 
 import com.di2win.contaonline.exception.client.ClientNotFoundException;
+import com.di2win.contaonline.exception.client.InvalidBirthDateException;
+import com.di2win.contaonline.exception.client.InvalidNameException;
 import com.di2win.contaonline.exception.cpf.CpfAlreadyExistsException;
 import com.di2win.contaonline.exception.cpf.CpfInvalidException;
 import com.di2win.contaonline.exception.cpf.InvalidCpfFormatException;
@@ -31,6 +33,17 @@ public class GlobalExceptionHandler {
     public ResponseEntity<String> handleClientNotFoundException(ClientNotFoundException ex) {
         return new ResponseEntity<>(ex.getMessage(), HttpStatus.NOT_FOUND);
     }
+
+    @ExceptionHandler(InvalidNameException.class)
+    public ResponseEntity<String> handleInvalidName(InvalidNameException ex) {
+        return new ResponseEntity<>(ex.getMessage(), HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(InvalidBirthDateException.class)
+    public ResponseEntity<String> handleInvalidBirthDate(InvalidBirthDateException ex) {
+        return new ResponseEntity<>(ex.getMessage(), HttpStatus.BAD_REQUEST);
+    }
+
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<String> handleGeneralException(Exception ex) {
