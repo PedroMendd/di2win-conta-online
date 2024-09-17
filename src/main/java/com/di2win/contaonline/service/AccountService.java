@@ -27,6 +27,9 @@ public class AccountService {
     @Autowired
     private ClientRepository clientRepository;
 
+    @Autowired
+    private TransactionService transactionService;
+
     public Account createAccount(String cpf){
      Optional<Client> client = clientRepository.findByCpf(cpf);
      if (client.isEmpty()) {
@@ -57,33 +60,13 @@ public class AccountService {
     }
 
     public Account deposit(Long accountId, BigDecimal amount) {
-        Account account = findById(accountId);
-
-        if (account.isBloqueada()) {
-            throw new AccountBlockedException("A conta está bloqueada e não pode receber depósitos.");
-        }
-
-        account.setSaldo(account.getSaldo().add(amount));
-        return accountRepository.save(account);
+        transactionService.deposit(accountId, amount);
+        return findById(accountId);
     }
 
     public Account withdraw(Long accountId, BigDecimal amount) {
-        Account account = findById(accountId);
-
-        if (account.isBloqueada()) {
-            throw new AccountBlockedException("A conta está bloqueada e não pode realizar saques.");
-        }
-
-        if (account.getSaldo().compareTo(amount) < 0) {
-            throw new InsufficientBalanceException("Saldo insuficiente!");
-        }
-
-        if (amount.compareTo(account.getLimiteDiarioSaque()) > 0) {
-            throw new WithdrawalLimitExceededException("O valor do saque excede o limite diário permitido.");
-        }
-
-        account.setSaldo(account.getSaldo().subtract(amount));
-        return accountRepository.save(account);
+        transactionService.withdraw(accountId, amount);
+        return findById(accountId);
     }
 
     public void deleteAccount(Long accountId) {
