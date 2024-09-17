@@ -1,5 +1,9 @@
 package com.di2win.contaonline.exception;
 
+import com.di2win.contaonline.exception.account.AccountBlockedException;
+import com.di2win.contaonline.exception.account.AccountNotFoundException;
+import com.di2win.contaonline.exception.account.InsufficientBalanceException;
+import com.di2win.contaonline.exception.account.WithdrawalLimitExceededException;
 import com.di2win.contaonline.exception.client.ClientNotFoundException;
 import com.di2win.contaonline.exception.client.InvalidBirthDateException;
 import com.di2win.contaonline.exception.client.InvalidNameException;
@@ -44,6 +48,25 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(ex.getMessage(), HttpStatus.BAD_REQUEST);
     }
 
+    @ExceptionHandler(AccountNotFoundException.class)
+    public ResponseEntity<String> handleAccountNotFoundException(AccountNotFoundException ex) {
+        return new ResponseEntity<>(ex.getMessage(), HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(AccountBlockedException.class)
+    public ResponseEntity<String> handleAccountBlockedException(AccountBlockedException ex) {
+        return new ResponseEntity<>(ex.getMessage(), HttpStatus.FORBIDDEN);
+    }
+
+    @ExceptionHandler(WithdrawalLimitExceededException.class)
+    public ResponseEntity<String> handleWithdrawalLimitExceededException(WithdrawalLimitExceededException ex) {
+        return new ResponseEntity<>(ex.getMessage(), HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(InsufficientBalanceException.class)
+    public ResponseEntity<String> handleInsufficientBalanceException(InsufficientBalanceException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+    }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<String> handleGeneralException(Exception ex) {

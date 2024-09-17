@@ -14,7 +14,7 @@ public class Account{
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, unique = true)
     private String numeroConta;
 
     @Column(nullable = false)
@@ -22,6 +22,9 @@ public class Account{
 
     @Column(nullable = false)
     private BigDecimal saldo;
+
+    @Column(nullable = false)
+    private BigDecimal limiteDiarioSaque = BigDecimal.valueOf(1000);
 
     @Column(nullable = false)
     private boolean bloqueada;
