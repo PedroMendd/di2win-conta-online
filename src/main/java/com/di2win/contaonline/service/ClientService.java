@@ -26,14 +26,15 @@ public class ClientService {
         return clientRepository.save(client);
     }
 
-    public void removeClientByCpf(String cpf) {
-        Optional<Client> client = clientRepository.findByCpf(cpf);
+    public void removeClientById(Long id) {
+        Optional<Client> client = clientRepository.findById(id);
         if (client.isPresent()) {
             clientRepository.delete(client.get());
         } else {
-            throw new ClientNotFoundException("Cliente não encontrado com CPF: " + cpf);
+            throw new ClientNotFoundException("Cliente não encontrado com ID: " + id);
         }
     }
+
 
     private void validateCPF(String cpf) {
         if (cpf == null || cpf.isEmpty()) {
