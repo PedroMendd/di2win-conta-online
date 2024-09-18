@@ -2,10 +2,7 @@ package com.di2win.contaonline.service;
 
 import com.di2win.contaonline.entity.Account;
 import com.di2win.contaonline.entity.Client;
-import com.di2win.contaonline.exception.account.AccountBlockedException;
 import com.di2win.contaonline.exception.account.AccountNotFoundException;
-import com.di2win.contaonline.exception.account.InsufficientBalanceException;
-import com.di2win.contaonline.exception.account.WithdrawalLimitExceededException;
 import com.di2win.contaonline.exception.client.ClientNotFoundException;
 import com.di2win.contaonline.repository.AccountRepository;
 import com.di2win.contaonline.repository.ClientRepository;
