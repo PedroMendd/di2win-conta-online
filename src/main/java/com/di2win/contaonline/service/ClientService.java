@@ -5,7 +5,6 @@ import com.di2win.contaonline.exception.client.ClientNotFoundException;
 import com.di2win.contaonline.exception.client.InvalidBirthDateException;
 import com.di2win.contaonline.exception.client.InvalidNameException;
 import com.di2win.contaonline.exception.cpf.CpfAlreadyExistsException;
-import com.di2win.contaonline.exception.cpf.InvalidCpfFormatException;
 import com.di2win.contaonline.repository.ClientRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -19,7 +18,7 @@ public class ClientService {
     private ClientRepository clientRepository;
 
     public Client createClient(Client client) {
-        validateCPF(client.getCpf());
+        CpfValidator.validate(client.getCpf());
 
         if (client.getNome() == null || client.getNome().trim().isEmpty()) {
             throw new InvalidNameException("O nome não pode ser nulo ou vazio.");
@@ -33,59 +32,13 @@ public class ClientService {
         if (existingClient.isPresent()) {
             throw new CpfAlreadyExistsException("CPF já cadastrado: " + client.getCpf());
         }
+
         return clientRepository.save(client);
     }
 
     public void removeClientById(Long id) {
-        Optional<Client> client = clientRepository.findById(id);
-        if (client.isPresent()) {
-            clientRepository.delete(client.get());
-        } else {
-            throw new ClientNotFoundException("Cliente não encontrado com ID: " + id);
-        }
+        Client client = clientRepository.findById(id)
+                .orElseThrow(() -> new ClientNotFoundException("Cliente não encontrado com ID: " + id));
+        clientRepository.delete(client);
     }
-
-
-    private void validateCPF(String cpf) {
-        if (cpf == null || cpf.isEmpty()) {
-            throw new InvalidCpfFormatException("O CPF não pode ser nulo ou vazio.");
-        }
-
-        if (cpf.length() != 11) {
-            throw new InvalidCpfFormatException("O CPF deve conter 11 dígitos.");
-        }
-
-        if (cpf.chars().distinct().count() == 1) {
-            throw new InvalidCpfFormatException("O CPF não pode conter todos os dígitos iguais.");
-        }
-
-        int sum = 0;
-        for (int i = 0; i < 9; i++) {
-            sum += Character.getNumericValue(cpf.charAt(i)) * (10 - i);
-        }
-        int firstVerifier = 11 - (sum % 11);
-        if (firstVerifier >= 10) {
-            firstVerifier = 0;
-        }
-
-        if (firstVerifier != Character.getNumericValue(cpf.charAt(9))) {
-            throw new InvalidCpfFormatException("O primeiro dígito verificador do CPF é inválido.");
-        }
-
-        sum = 0;
-        for (int i = 0; i < 10; i++) {
-            sum += Character.getNumericValue(cpf.charAt(i)) * (11 - i);
-        }
-        int secondVerifier = 11 - (sum % 11);
-        if (secondVerifier >= 10) {
-            secondVerifier = 0;
-        }
-
-        if (secondVerifier != Character.getNumericValue(cpf.charAt(10))) {
-            throw new InvalidCpfFormatException("O segundo dígito verificador do CPF é inválido.");
-        }
-    }
-
-
-
 }

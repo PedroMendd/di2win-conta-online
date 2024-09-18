@@ -2,6 +2,7 @@ package com.di2win.contaonline.service;
 
 import com.di2win.contaonline.entity.Account;
 import com.di2win.contaonline.entity.Client;
+import com.di2win.contaonline.exception.account.AccountBlockedException;
 import com.di2win.contaonline.exception.account.AccountNotFoundException;
 import com.di2win.contaonline.exception.client.ClientNotFoundException;
 import com.di2win.contaonline.repository.AccountRepository;
@@ -57,31 +58,61 @@ public class AccountService {
     }
 
     public Account deposit(Long accountId, BigDecimal amount) {
-        transactionService.deposit(accountId, amount);
+        Account account = findById(accountId);
+
+        if (account.isBloqueada()) {
+            throw new AccountBlockedException("A conta está bloqueada e não pode receber depósitos.");
+        }
+
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("O valor do depósito deve ser maior que zero.");
+        }
+
+        transactionService.deposit(account.getId(), amount);
         return findById(accountId);
     }
 
     public Account withdraw(Long accountId, BigDecimal amount) {
-        transactionService.withdraw(accountId, amount);
+        Account account = findById(accountId);
+
+        if (account.isBloqueada()) {
+            throw new AccountBlockedException("A conta está bloqueada e não pode realizar saques.");
+        }
+
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("O valor do saque deve ser maior que zero.");
+        }
+
+        transactionService.withdraw(account.getId(), amount);
         return findById(accountId);
     }
 
+    public void blockAccount(Long accountId) {
+        Account account = findById(accountId);
+        account.setBloqueada(true);
+        accountRepository.save(account);
+    }
+
+
     public void deleteAccount(Long accountId) {
         Account account = findById(accountId);
+        if (account.isBloqueada()) {
+            throw new AccountBlockedException("Conta bloqueada não pode ser deletada.");
+        }
         accountRepository.delete(account);
     }
+
 
     private String generateUniqueAccountNumber() {
         Random random = new Random();
         String numeroConta;
-        boolean exists;
 
         do {
             numeroConta = String.format("%08d", random.nextInt(100000000));
-            exists = accountRepository.findByNumeroConta(numeroConta).isPresent();
-        } while (exists);
+        } while (accountRepository.findByNumeroConta(numeroConta).isPresent());
 
         return numeroConta;
-    };
+    }
+
 
 }

@@ -41,10 +41,8 @@ public class AccountController {
     }
 
     @PostMapping("/{accountId}/block")
-    public ResponseEntity<Account> blockAccount(@PathVariable Long accountId) {
-        Account account = accountService.findById(accountId);
-        account.setBloqueada(true);
-        accountService.save(account);
+    public ResponseEntity<Void> blockAccount(@PathVariable Long accountId) {
+        accountService.blockAccount(accountId);
         return ResponseEntity.noContent().build();
     }
 
@@ -54,3 +52,4 @@ public class AccountController {
         return ResponseEntity.noContent().build();
     }
 }
+

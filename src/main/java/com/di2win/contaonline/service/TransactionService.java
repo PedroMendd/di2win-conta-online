@@ -33,6 +33,10 @@ public class TransactionService {
             throw new AccountBlockedException("A conta está bloqueada e não pode receber depósitos.");
         }
 
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("O valor do depósito deve ser maior que zero.");
+        }
+
         Transaction transaction = new Transaction();
         transaction.setConta(account);
         transaction.setValor(amount);
@@ -47,12 +51,15 @@ public class TransactionService {
         return transaction;
     }
 
-
     public Transaction withdraw(Long accountId, BigDecimal amount) {
         Account account = findAccountById(accountId);
 
         if (account.isBloqueada()) {
             throw new AccountBlockedException("A conta está bloqueada e não pode realizar saques.");
+        }
+
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("O valor do saque deve ser maior que zero.");
         }
 
         if (account.getSaldo().compareTo(amount) < 0) {
