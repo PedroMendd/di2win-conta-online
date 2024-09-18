@@ -159,7 +159,7 @@ public class ClientServiceTest {
         Client client = new Client();
         client.setCpf("06915290435");
         client.setNome("Pedro Mend");
-        client.setDataNascimento(null); // Data de nascimento nula
+        client.setDataNascimento(null);
 
         assertThrows(InvalidBirthDateException.class, () -> {
             clientService.createClient(client);
@@ -189,10 +189,8 @@ public class ClientServiceTest {
     void testRemoveClientByIdThrowsClientNotFoundException() {
         Long clientId = 1L;
 
-        // Simula que o cliente não existe no repositório
         when(clientRepository.findById(clientId)).thenReturn(Optional.empty());
 
-        // Verifica se a exceção é lançada
         assertThrows(ClientNotFoundException.class, () -> {
             clientService.removeClientById(clientId);
         });

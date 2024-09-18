@@ -15,4 +15,5 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
 
     List<Transaction> findByContaAndDataHoraBetween(Account conta, LocalDateTime start, LocalDateTime end);
 
+    List<Transaction> findByConta(Account account);
 }

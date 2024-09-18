@@ -1,16 +1,15 @@
 package com.di2win.contaonline.entity;
 
-import com.di2win.contaonline.entity.Account;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import lombok.Data;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "transacoes")
 @Data
-public class Transaction{
+public class Transaction {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -28,10 +27,11 @@ public class Transaction{
 
     @ManyToOne
     @JoinColumn(name = "conta_id", nullable = false)
+    @JsonBackReference
     private Account conta;
 
     @PrePersist
-    protected void onCreate(){
+    protected void onCreate() {
         this.dataHora = LocalDateTime.now();
     }
 }

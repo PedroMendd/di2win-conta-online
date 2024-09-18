@@ -54,7 +54,6 @@ public class ClientControllerTest {
 
     @Test
     void testDeleteClientSuccess() throws Exception {
-        // Simula a remoção com sucesso
         mockMvc.perform(delete("/api/clients/{id}", 1L))
                 .andExpect(status().isNoContent());
 
@@ -63,7 +62,6 @@ public class ClientControllerTest {
 
     @Test
     void testDeleteClientThrowsClientNotFoundException() throws Exception {
-        // Simula o lançamento da ClientNotFoundException
         Mockito.doThrow(new ClientNotFoundException("Cliente não encontrado"))
                 .when(clientService).removeClientById(1L);
 

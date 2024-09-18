@@ -38,11 +38,15 @@ public class TransactionService {
         transaction.setValor(amount);
         transaction.setTipo(TransactionType.DEPOSITO);
 
+        account.getTransactions().add(transaction);
         account.setSaldo(account.getSaldo().add(amount));
+
+        transactionRepository.save(transaction);
         accountRepository.save(account);
 
-        return transactionRepository.save(transaction);
+        return transaction;
     }
+
 
     public Transaction withdraw(Long accountId, BigDecimal amount) {
         Account account = findAccountById(accountId);
@@ -65,11 +69,14 @@ public class TransactionService {
         transaction.setValor(amount);
         transaction.setTipo(TransactionType.SAQUE);
 
+        account.getTransactions().add(transaction);
+
         account.setSaldo(account.getSaldo().subtract(amount));
         accountRepository.save(account);
 
         return transactionRepository.save(transaction);
     }
+
 
     private BigDecimal calcularTotalSaquesDia(Account account) {
         LocalDateTime inicioDoDia = LocalDateTime.now().with(LocalTime.MIN);
