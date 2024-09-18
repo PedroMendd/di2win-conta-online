@@ -185,7 +185,7 @@ public class AccountServiceTest {
             accountService.withdraw(1L, BigDecimal.valueOf(100));
         });
 
-        assertEquals("A conta está bloqueada", exception.getMessage());
+        assertEquals("A conta está bloqueada e não pode realizar saques.", exception.getMessage());
     }
 
     @Test
