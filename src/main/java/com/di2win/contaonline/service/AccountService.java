@@ -193,15 +193,4 @@ public class AccountService {
         accountRepository.delete(account);
     }
 
-
-    private String generateUniqueAccountNumber() {
-        Random random = new Random();
-        String numeroConta;
-
-        do {
-            numeroConta = String.format("%08d", random.nextInt(100000000));
-        } while (accountRepository.findByNumeroConta(numeroConta).isPresent());
-
-        return numeroConta;
-    }
 }
