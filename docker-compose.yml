@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: di2win_postgres
+    environment:
+      POSTGRES_USER: di2win_user
+      POSTGRES_PASSWORD: di2win_password
+      POSTGRES_DB: di2win_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - di2win-network
+
+  app:
+    image: di2win-conta-online:latest
+    container_name: di2win_app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    networks:
+      - di2win-network
+
+volumes:
+  postgres_data:
+
+networks:
+  di2win-network:
+    driver: bridge
