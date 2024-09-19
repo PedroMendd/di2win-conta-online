@@ -1,7 +1,10 @@
 package com.di2win.contaonline.controller;
 
+import com.di2win.contaonline.dto.ClientCreationDTO;
+import com.di2win.contaonline.dto.ClientResponseDTO;
 import com.di2win.contaonline.entity.Client;
 import com.di2win.contaonline.exception.client.ClientNotFoundException;
+import com.di2win.contaonline.exception.cpf.CpfAlreadyExistsException;
 import com.di2win.contaonline.service.ClientService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,19 +31,28 @@ public class ClientControllerTest {
     @MockBean
     private ClientService clientService;
 
-    private Client client;
-
     @BeforeEach
     void setUp() {
-        client = new Client();
-        client.setCpf("06915290435");
-        client.setNome("Pedro Mend");
-        client.setDataNascimento(LocalDate.of(1988, 6, 20));
+        ClientResponseDTO clientResponseDTO = new ClientResponseDTO();
+        clientResponseDTO.setId(1L);
+        clientResponseDTO.setCpf("06915290435");
+        clientResponseDTO.setNome("Pedro Mend");
+        clientResponseDTO.setDataNascimento(LocalDate.of(1988, 6, 20));
+
+        ClientCreationDTO clientCreationDTO = new ClientCreationDTO();
+        clientCreationDTO.setCpf("06915290435");
+        clientCreationDTO.setNome("Pedro Mend");
+        clientCreationDTO.setDataNascimento(LocalDate.of(1988, 6, 20));
     }
 
     @Test
     void testCreateClientSuccess() throws Exception {
-        when(clientService.createClient(Mockito.any(Client.class))).thenReturn(client);
+        Client client = new Client();
+        client.setCpf("06915290435");
+        client.setNome("Pedro Mend");
+        client.setDataNascimento(LocalDate.of(1988, 6, 20));
+
+        when(clientService.createClient(Mockito.any(ClientCreationDTO.class))).thenReturn(client);
 
         mockMvc.perform(post("/api/clients")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -49,8 +61,9 @@ public class ClientControllerTest {
                 .andExpect(jsonPath("$.cpf").value("06915290435"))
                 .andExpect(jsonPath("$.nome").value("Pedro Mend"));
 
-        verify(clientService).createClient(Mockito.any(Client.class));
+        verify(clientService).createClient(Mockito.any(ClientCreationDTO.class));
     }
+
 
     @Test
     void testDeleteClientSuccess() throws Exception {
@@ -70,6 +83,47 @@ public class ClientControllerTest {
                 .andExpect(content().string("Cliente não encontrado"));
 
         verify(clientService).removeClientById(1L);
+    }
+
+    @Test
+    void testCreateClientThrowsCpfAlreadyExistsException() throws Exception {
+        Mockito.doThrow(new CpfAlreadyExistsException("CPF já cadastrado"))
+                .when(clientService).createClient(Mockito.any(ClientCreationDTO.class));
+
+        mockMvc.perform(post("/api/clients")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{ \"cpf\": \"06915290435\", \"nome\": \"Pedro Mend\", \"dataNascimento\": \"1988-06-20\" }"))
+                .andExpect(status().isConflict())
+                .andExpect(content().string("CPF já cadastrado"));
+    }
+
+    @Test
+    void testCreateClientThrowsInvalidCpfFormatException() throws Exception {
+        mockMvc.perform(post("/api/clients")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{ \"cpf\": \"12345678\", \"nome\": \"Pedro Mend\", \"dataNascimento\": \"1988-06-20\" }"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.cpf").value("O CPF deve conter 11 dígitos"));
+    }
+
+
+    @Test
+    void testCreateClientWithEmptyName() throws Exception {
+        mockMvc.perform(post("/api/clients")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{ \"cpf\": \"06915290435\", \"nome\": \"\", \"dataNascimento\": \"1988-06-20\" }"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.nome").value("O nome é obrigatório"));
+    }
+
+
+    @Test
+    void testCreateClientWithNullBirthDate() throws Exception {
+        mockMvc.perform(post("/api/clients")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{ \"cpf\": \"06915290435\", \"nome\": \"Pedro Mend\", \"dataNascimento\": null }"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.dataNascimento").value("A data de nascimento é obrigatória"));
     }
 
 }

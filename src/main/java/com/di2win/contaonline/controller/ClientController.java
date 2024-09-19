@@ -1,7 +1,10 @@
 package com.di2win.contaonline.controller;
 
+import com.di2win.contaonline.dto.ClientCreationDTO;
+import com.di2win.contaonline.dto.ClientResponseDTO;
 import com.di2win.contaonline.entity.Client;
 import com.di2win.contaonline.service.ClientService;
+import com.di2win.contaonline.util.ClientMapper;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -16,15 +19,17 @@ public class ClientController {
     private ClientService clientService;
 
     @PostMapping
-    public ResponseEntity<Client> createClient(@Valid @RequestBody Client client){
-        Client createdClient = clientService.createClient(client);
-        return new ResponseEntity<>(createdClient, HttpStatus.CREATED);
+    public ResponseEntity<ClientResponseDTO> createClient(@Valid @RequestBody ClientCreationDTO clientCreationDTO) {
+        Client createdClient = clientService.createClient(clientCreationDTO);
+        ClientResponseDTO responseDTO = ClientMapper.mapToClientResponseDTO(createdClient);
+        return new ResponseEntity<>(responseDTO, HttpStatus.CREATED);
     }
 
+
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteClient(@PathVariable Long id){
+    public ResponseEntity<Void> deleteClient(@PathVariable Long id) {
         clientService.removeClientById(id);
-        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+        return ResponseEntity.noContent().build();
     }
 
 }

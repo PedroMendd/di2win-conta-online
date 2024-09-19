@@ -1,4 +1,4 @@
-package com.di2win.contaonline.service;
+package com.di2win.contaonline.util;
 
 import com.di2win.contaonline.exception.cpf.InvalidCpfFormatException;
 

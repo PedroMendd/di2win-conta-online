@@ -1,5 +1,7 @@
 package com.di2win.contaonline.service;
 
+import com.di2win.contaonline.dto.AccountCreationDTO;
+import com.di2win.contaonline.dto.TransactionDTO;
 import com.di2win.contaonline.entity.Account;
 import com.di2win.contaonline.entity.Client;
 import com.di2win.contaonline.entity.Transaction;
@@ -9,6 +11,7 @@ import com.di2win.contaonline.exception.client.ClientNotFoundException;
 import com.di2win.contaonline.repository.AccountRepository;
 import com.di2win.contaonline.repository.ClientRepository;
 import com.di2win.contaonline.repository.TransactionRepository;
+import com.di2win.contaonline.util.AccountNumberGenerator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -18,6 +21,7 @@ import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Random;
+import java.util.stream.Collectors;
 
 @Service
 public class AccountService {
@@ -33,13 +37,16 @@ public class AccountService {
     @Autowired
     private TransactionRepository transactionRepository;
 
-    public Account createAccount(String cpf) {
-        Optional<Client> client = clientRepository.findByCpf(cpf);
+    @Autowired
+    private AccountNumberGenerator accountNumberGenerator;
+
+    public Account createAccount(AccountCreationDTO accountCreationDTO) {
+        Optional<Client> client = clientRepository.findByCpf(accountCreationDTO.getCpf());
         if (client.isEmpty()) {
-            throw new ClientNotFoundException("Cliente não encontrado com CPF: " + cpf);
+            throw new ClientNotFoundException("Cliente não encontrado com CPF: " + accountCreationDTO.getCpf());
         }
 
-        String numeroConta = generateUniqueAccountNumber();
+        String numeroConta = accountNumberGenerator.generateUniqueAccountNumber(accountRepository);
 
         Account account = new Account();
         account.setCliente(client.get());
@@ -51,6 +58,7 @@ public class AccountService {
 
         return accountRepository.save(account);
     }
+
 
     public Account findById(Long id) {
         return accountRepository.findById(id)
@@ -68,16 +76,13 @@ public class AccountService {
             throw new AccountBlockedException("A conta está bloqueada e não pode receber depósitos.");
         }
 
-        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("O valor do depósito deve ser maior que zero.");
-        }
-
         Transaction transaction = new Transaction();
         transaction.setConta(account);
         transaction.setValor(amount);
         transaction.setTipo(TransactionType.DEPOSITO);
 
         account.getTransactions().add(transaction);
+
         account.setSaldo(account.getSaldo().add(amount));
 
         transactionRepository.save(transaction);
@@ -85,6 +90,7 @@ public class AccountService {
 
         return findById(accountId);
     }
+
 
     public Account withdraw(Long accountId, BigDecimal amount) {
         Account account = findById(accountId);
@@ -120,6 +126,7 @@ public class AccountService {
         return findById(accountId);
     }
 
+
     private BigDecimal calcularTotalSaquesDia(Account account) {
         LocalDateTime inicioDoDia = LocalDateTime.now().with(LocalTime.MIN);
         LocalDateTime fimDoDia = LocalDateTime.now().with(LocalTime.MAX);
@@ -132,24 +139,60 @@ public class AccountService {
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    public List<Transaction> getTransactionsByPeriod(Long accountId, LocalDateTime start, LocalDateTime end) {
+    public List<TransactionDTO> getTransactionsByPeriod(Long accountId, LocalDateTime start, LocalDateTime end) {
         Account account = findById(accountId);
-        return transactionRepository.findByContaAndDataHoraBetween(account, start, end);
+        List<Transaction> transactions = transactionRepository.findByContaAndDataHoraBetween(account, start, end);
+
+        return transactions.stream()
+                .map(transaction -> {
+                    TransactionDTO dto = new TransactionDTO();
+                    dto.setId(transaction.getId());
+                    dto.setValor(transaction.getValor());
+                    dto.setTipo(transaction.getTipo().toString());
+                    dto.setDataHora(transaction.getDataHora());
+                    return dto;
+                })
+                .collect(Collectors.toList());
     }
+
 
     public void blockAccount(Long accountId) {
         Account account = findById(accountId);
+
+        if (account.isBloqueada()) {
+            throw new IllegalStateException("A conta já está bloqueada.");
+        }
+
         account.setBloqueada(true);
         accountRepository.save(account);
     }
 
+    public void unblockAccount(Long accountId) {
+        Account account = findById(accountId);
+
+        if (!account.isBloqueada()) {
+            throw new IllegalStateException("A conta já está desbloqueada.");
+        }
+
+        account.setBloqueada(false);
+        accountRepository.save(account);
+    }
+
+
     public void deleteAccount(Long accountId) {
         Account account = findById(accountId);
+
         if (account.isBloqueada()) {
             throw new AccountBlockedException("Conta bloqueada não pode ser deletada.");
         }
+
+        if (!account.getTransactions().isEmpty()) {
+            throw new IllegalStateException("Conta com transações não pode ser deletada.");
+        }
+
         accountRepository.delete(account);
     }
+
 
     private String generateUniqueAccountNumber() {
         Random random = new Random();

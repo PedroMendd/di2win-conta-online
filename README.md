@@ -14,14 +14,6 @@ A aplicação Di2win Conta Online é uma API REST que permite gerenciar contas b
 
 ---
 
-## Instalação e Configuração
-
-### Pré-requisitos
-- Java 17+
-- PostgreSQL instalado e configurado
-- Maven 3.6+
-- Docker (opcional para rodar a aplicação com containers)
-
 ## Endpoints da API
 
 ### Criação de Cliente
@@ -49,7 +41,15 @@ A aplicação Di2win Conta Online é uma API REST que permite gerenciar contas b
 ### Criação da Conta
 **POST** `/api/accounts?cpf={cpf}`
 - **Descrição:** Cria uma nova conta vinculada a um cliente por CPF.
-
+- **Request Body:**
+  ```json
+  {
+     "cpf": "12345678900",
+  "agencia": "1234",
+  "numeroConta": "00000001",
+  "limiteDiarioSaque": 1000.00
+  }
+- Status 201 Created
 - **Response Body:**
 - ```json
   {

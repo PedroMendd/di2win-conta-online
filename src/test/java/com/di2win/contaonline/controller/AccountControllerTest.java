@@ -1,5 +1,8 @@
 package com.di2win.contaonline.controller;
 
+import com.di2win.contaonline.dto.AccountCreationDTO;
+import com.di2win.contaonline.dto.DepositDTO;
+import com.di2win.contaonline.dto.WithdrawalDTO;
 import com.di2win.contaonline.entity.Account;
 import com.di2win.contaonline.entity.Client;
 import com.di2win.contaonline.repository.AccountRepository;
@@ -16,7 +19,6 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -57,9 +59,12 @@ public class AccountControllerTest {
 
     @Test
     public void testCreateAccountSuccess() throws Exception {
+        AccountCreationDTO accountCreationDTO = new AccountCreationDTO();
+        accountCreationDTO.setCpf("12345678900");
+
         mockMvc.perform(post("/api/accounts")
-                        .param("cpf", "12345678900")
-                        .contentType(MediaType.APPLICATION_JSON))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(accountCreationDTO)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").isNumber())
                 .andExpect(jsonPath("$.agencia").value("1234"))
@@ -71,9 +76,12 @@ public class AccountControllerTest {
 
     @Test
     public void testCreateAccountClientNotFound() throws Exception {
+        AccountCreationDTO accountCreationDTO = new AccountCreationDTO();
+        accountCreationDTO.setCpf("00000000000");
+
         mockMvc.perform(post("/api/accounts")
-                        .param("cpf", "00000000000")
-                        .contentType(MediaType.APPLICATION_JSON))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(accountCreationDTO)))
                 .andExpect(status().isNotFound())
                 .andExpect(content().string("Cliente não encontrado com CPF: 00000000000"));
     }
@@ -105,60 +113,60 @@ public class AccountControllerTest {
 
     @Test
     public void testDepositSuccess() throws Exception {
-        // Criar uma nova conta com saldo zero
         Account account = new Account();
         account.setAgencia("1234");
         account.setNumeroConta("00000001");
-        account.setSaldo(BigDecimal.ZERO);  // Saldo inicial de 0
+        account.setSaldo(BigDecimal.ZERO);
         account.setBloqueada(false);
         account.setLimiteDiarioSaque(BigDecimal.valueOf(1000));
-        account.setCliente(client);  // Associar o cliente criado no setup
-        accountRepository.save(account);  // Salvar a conta no repositório
+        account.setCliente(client);
+        accountRepository.save(account);
 
-        // Realizar o depósito de 500
-        mockMvc.perform(post("/api/accounts/{accountId}/deposit", account.getId())
-                        .param("amount", "500")  // Definir o valor do depósito
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())  // Verificar se o status é 200 OK
-                .andExpect(jsonPath("$.saldo").value(500.00));  // Verificar se o saldo atualizado é 500.00
+        DepositDTO depositDTO = new DepositDTO();
+        depositDTO.setAmount(BigDecimal.valueOf(500));
 
-        // Verificar se o saldo da conta foi atualizado corretamente no repositório
+        mockMvc.perform(put("/api/accounts/{accountId}/deposit", account.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(depositDTO)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.saldo").value(500.00));
+
         Account updatedAccount = accountRepository.findById(account.getId()).orElseThrow();
-        assertEquals(0, BigDecimal.valueOf(500.00).compareTo(updatedAccount.getSaldo()));  // Comparar usando compareTo
+        assertEquals(0, BigDecimal.valueOf(500.00).compareTo(updatedAccount.getSaldo()));
     }
-
-
-
 
     @Test
     public void testDepositAccountNotFound() throws Exception {
-        mockMvc.perform(post("/api/accounts/{accountId}/deposit", 999L) // ID inexistente
-                        .param("amount", "500")
-                        .contentType(MediaType.APPLICATION_JSON))
+        DepositDTO depositDTO = new DepositDTO();
+        depositDTO.setAmount(BigDecimal.valueOf(500));
+
+        mockMvc.perform(put("/api/accounts/{accountId}/deposit", 999L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(depositDTO)))
                 .andExpect(status().isNotFound())
                 .andExpect(content().string("Conta não encontrada: 999"));
     }
 
     @Test
     public void testWithdrawSuccess() throws Exception {
-        // Criar uma conta com saldo suficiente
         Account account = new Account();
         account.setAgencia("1234");
         account.setNumeroConta("00000001");
-        account.setSaldo(BigDecimal.valueOf(500));  // Saldo inicial de 500
+        account.setSaldo(BigDecimal.valueOf(500));
         account.setBloqueada(false);
         account.setLimiteDiarioSaque(BigDecimal.valueOf(1000));
-        account.setCliente(client);  // Associar o cliente criado no setup
-        accountRepository.save(account);  // Salvar a conta no repositório
+        account.setCliente(client);
+        accountRepository.save(account);
 
-        // Realizar o saque de 200
-        mockMvc.perform(post("/api/accounts/{accountId}/withdraw", account.getId())
-                        .param("amount", "200")  // Definir o valor do saque
-                        .contentType(MediaType.APPLICATION_JSON))
+        WithdrawalDTO withdrawalDTO = new WithdrawalDTO();
+        withdrawalDTO.setAmount(BigDecimal.valueOf(200));
+
+        mockMvc.perform(put("/api/accounts/{accountId}/withdraw", account.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(withdrawalDTO)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.saldo").value(300));  // Verificar se o saldo atualizado é 300
+                .andExpect(jsonPath("$.saldo").value(300));
     }
-
 
     @Test
     public void testWithdrawInsufficientBalance() throws Exception {
@@ -171,9 +179,12 @@ public class AccountControllerTest {
         account.setCliente(client);
         accountRepository.save(account);
 
-        mockMvc.perform(post("/api/accounts/{accountId}/withdraw", account.getId())
-                        .param("amount", "200")
-                        .contentType(MediaType.APPLICATION_JSON))
+        WithdrawalDTO withdrawalDTO = new WithdrawalDTO();
+        withdrawalDTO.setAmount(BigDecimal.valueOf(200));
+
+        mockMvc.perform(put("/api/accounts/{accountId}/withdraw", account.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(withdrawalDTO)))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().string("Saldo insuficiente!"));
     }
@@ -189,9 +200,12 @@ public class AccountControllerTest {
         account.setCliente(client);
         accountRepository.save(account);
 
-        mockMvc.perform(post("/api/accounts/{accountId}/withdraw", account.getId())
-                        .param("amount", "100")
-                        .contentType(MediaType.APPLICATION_JSON))
+        WithdrawalDTO withdrawalDTO = new WithdrawalDTO();
+        withdrawalDTO.setAmount(BigDecimal.valueOf(100));
+
+        mockMvc.perform(put("/api/accounts/{accountId}/withdraw", account.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(withdrawalDTO)))
                 .andExpect(status().isForbidden())
                 .andExpect(content().string("A conta está bloqueada e não pode realizar saques."));
     }
@@ -207,9 +221,12 @@ public class AccountControllerTest {
         account.setCliente(client);
         accountRepository.save(account);
 
-        mockMvc.perform(post("/api/accounts/{accountId}/withdraw", account.getId())
-                        .param("amount", "200")
-                        .contentType(MediaType.APPLICATION_JSON))
+        WithdrawalDTO withdrawalDTO = new WithdrawalDTO();
+        withdrawalDTO.setAmount(BigDecimal.valueOf(200));
+
+        mockMvc.perform(put("/api/accounts/{accountId}/withdraw", account.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(withdrawalDTO)))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().string("O valor total de saques do dia excede o limite diário permitido."));
     }
