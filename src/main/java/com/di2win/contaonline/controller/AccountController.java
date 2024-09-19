@@ -1,6 +1,7 @@
 package com.di2win.contaonline.controller;
 
 import com.di2win.contaonline.entity.Account;
+import com.di2win.contaonline.entity.Transaction;
 import com.di2win.contaonline.service.AccountService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -8,6 +9,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.net.URI;
+import java.time.LocalDateTime;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/accounts")
@@ -40,6 +43,14 @@ public class AccountController {
         return ResponseEntity.ok(account);
     }
 
+    @GetMapping("/{accountId}/transactions")
+    public ResponseEntity<List<Transaction>> getTransactionsByPeriod(@PathVariable Long accountId,
+                                                                     @RequestParam LocalDateTime start,
+                                                                     @RequestParam LocalDateTime end) {
+        List<Transaction> transactions = accountService.getTransactionsByPeriod(accountId, start, end);
+        return ResponseEntity.ok(transactions);
+    }
+
     @PostMapping("/{accountId}/block")
     public ResponseEntity<Void> blockAccount(@PathVariable Long accountId) {
         accountService.blockAccount(accountId);
@@ -52,4 +63,3 @@ public class AccountController {
         return ResponseEntity.noContent().build();
     }
 }
-

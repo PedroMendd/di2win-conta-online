@@ -1,14 +1,13 @@
 package com.di2win.contaonline.service;
 
 import com.di2win.contaonline.entity.Account;
-import com.di2win.contaonline.entity.Client;
+import com.di2win.contaonline.entity.Transaction;
+import com.di2win.contaonline.entity.TransactionType;
 import com.di2win.contaonline.exception.account.AccountBlockedException;
-import com.di2win.contaonline.exception.account.AccountNotFoundException;
 import com.di2win.contaonline.exception.account.InsufficientBalanceException;
 import com.di2win.contaonline.exception.account.WithdrawalLimitExceededException;
-import com.di2win.contaonline.exception.client.ClientNotFoundException;
 import com.di2win.contaonline.repository.AccountRepository;
-import com.di2win.contaonline.repository.ClientRepository;
+import com.di2win.contaonline.repository.TransactionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -16,195 +15,230 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
 
 public class AccountServiceTest {
 
     @Mock
+    private TransactionRepository transactionRepository;
+
+    @Mock
     private AccountRepository accountRepository;
-
-    @Mock
-    private ClientRepository clientRepository;
-
-    @Mock
-    private TransactionService transactionService;
 
     @InjectMocks
     private AccountService accountService;
 
     @BeforeEach
-    public void setup() {
+    void setUp() {
         MockitoAnnotations.openMocks(this);
     }
 
     @Test
-    public void testCreateAccountSuccess() {
-        Client client = new Client();
-        client.setCpf("12345678900");
-        when(clientRepository.findByCpf("12345678900")).thenReturn(Optional.of(client));
-
-        when(accountRepository.findByNumeroConta(anyString())).thenReturn(Optional.empty());
+    void testDeposit() {
+        Long accountId = 1L;
+        BigDecimal depositAmount = BigDecimal.valueOf(1000);
 
         Account account = new Account();
-        account.setAgencia("1234");
-        account.setNumeroConta("00000001");
-        account.setSaldo(BigDecimal.ZERO);
+        account.setId(accountId);
+        account.setSaldo(BigDecimal.valueOf(2000));
+
+        when(accountRepository.findById(accountId)).thenReturn(Optional.of(account));
+        when(transactionRepository.save(any(Transaction.class))).thenAnswer(i -> i.getArguments()[0]);
+
+        accountService.deposit(accountId, depositAmount);
+
+        assertEquals(BigDecimal.valueOf(3000), account.getSaldo());
+        verify(accountRepository, times(1)).save(account);
+        verify(transactionRepository, times(1)).save(any(Transaction.class));
+    }
+
+    @Test
+    void testWithdrawSuccess() {
+        Long accountId = 1L;
+        BigDecimal initialBalance = BigDecimal.valueOf(1000);
+        BigDecimal withdrawAmount = BigDecimal.valueOf(200);
+
+        Account account = new Account();
+        account.setId(accountId);
+        account.setSaldo(initialBalance);
         account.setBloqueada(false);
-        account.setCliente(client);
+        account.setLimiteDiarioSaque(BigDecimal.valueOf(500));
 
-        when(accountRepository.save(any(Account.class))).thenReturn(account);
+        Transaction transaction = new Transaction();
+        transaction.setId(1L);
+        transaction.setConta(account);
+        transaction.setValor(withdrawAmount);
+        transaction.setTipo(TransactionType.SAQUE);
 
-        Account createdAccount = accountService.createAccount("12345678900");
+        when(accountRepository.findById(accountId)).thenReturn(Optional.of(account));
+        when(transactionRepository.save(any(Transaction.class))).thenReturn(transaction);
 
-        assertNotNull(createdAccount);
-        assertEquals(BigDecimal.ZERO, createdAccount.getSaldo());
-        assertFalse(createdAccount.isBloqueada());
-        assertEquals("1234", createdAccount.getAgencia());
+        accountService.withdraw(accountId, withdrawAmount);
 
-        verify(accountRepository, times(1)).save(any(Account.class));
-    }
-
-
-    @Test
-    public void testCreateAccountClientNotFound() {
-        when(clientRepository.findByCpf("12345678900")).thenReturn(Optional.empty());
-
-        assertThrows(ClientNotFoundException.class, () -> accountService.createAccount("12345678900"));
+        assertEquals(initialBalance.subtract(withdrawAmount), account.getSaldo());
+        verify(transactionRepository).save(any(Transaction.class));
+        verify(accountRepository).save(account);
     }
 
     @Test
-    public void testFindByIdSuccess() {
+    void testWithdrawExceedsDailyLimit() {
+        Long accountId = 1L;
+        BigDecimal amount = new BigDecimal("500");
+
         Account account = new Account();
-        account.setId(1L);
-        when(accountRepository.findById(1L)).thenReturn(Optional.of(account));
+        account.setId(accountId);
+        account.setSaldo(new BigDecimal("1000"));
+        account.setLimiteDiarioSaque(new BigDecimal("1000"));
 
-        Account foundAccount = accountService.findById(1L);
-        assertNotNull(foundAccount);
-        assertEquals(1L, foundAccount.getId());
-    }
+        when(accountRepository.findById(accountId)).thenReturn(Optional.of(account));
 
-    @Test
-    public void testFindByIdNotFound() {
-        when(accountRepository.findById(1L)).thenReturn(Optional.empty());
+        Transaction previousWithdrawal = new Transaction();
+        previousWithdrawal.setTipo(TransactionType.SAQUE);
+        previousWithdrawal.setValor(new BigDecimal("600"));
+        when(transactionRepository.findByContaAndDataHoraBetween(any(), any(), any()))
+                .thenReturn(List.of(previousWithdrawal));
 
-        assertThrows(AccountNotFoundException.class, () -> accountService.findById(1L));
-    }
-
-    @Test
-    public void testDepositSuccess() {
-        Account account = new Account();
-        account.setId(1L);
-        account.setSaldo(BigDecimal.ZERO);
-
-        when(accountRepository.findById(1L)).thenReturn(Optional.of(account));
-
-        accountService.deposit(1L, BigDecimal.valueOf(500));
-
-        verify(transactionService, times(1)).deposit(1L, BigDecimal.valueOf(500));
-        assertEquals(BigDecimal.ZERO, account.getSaldo());
-    }
-
-    @Test
-    public void testWithdrawSuccess() {
-        Account account = new Account();
-        account.setId(1L);
-        account.setSaldo(BigDecimal.valueOf(500));
-
-        when(accountRepository.findById(1L)).thenReturn(Optional.of(account));
-
-        accountService.withdraw(1L, BigDecimal.valueOf(200));
-
-        verify(transactionService, times(1)).withdraw(1L, BigDecimal.valueOf(200));
-        assertEquals(BigDecimal.valueOf(500), account.getSaldo());
-    }
-
-    @Test
-    public void testDeleteAccountSuccess() {
-        Account account = new Account();
-        account.setId(1L);
-        when(accountRepository.findById(1L)).thenReturn(Optional.of(account));
-
-        accountService.deleteAccount(1L);
-
-        verify(accountRepository, times(1)).delete(account);
-    }
-
-    @Test
-    public void testCreateAccountThrowsClientNotFoundException() {
-        when(clientRepository.findByCpf("12345678900")).thenReturn(Optional.empty());
-
-        Exception exception = assertThrows(ClientNotFoundException.class, () -> {
-            accountService.createAccount("12345678900");
+        assertThrows(WithdrawalLimitExceededException.class, () -> {
+            accountService.withdraw(accountId, amount);
         });
 
-        assertEquals("Cliente não encontrado com CPF: 12345678900", exception.getMessage());
+        verify(accountRepository, never()).save(any());
     }
 
     @Test
-    public void testFindByIdThrowsAccountNotFoundException() {
-        when(accountRepository.findById(1L)).thenReturn(Optional.empty());
+    void testDepositThrowsAccountBlockedException() {
+        Long accountId = 1L;
+        BigDecimal amount = BigDecimal.valueOf(100);
 
-        Exception exception = assertThrows(AccountNotFoundException.class, () -> {
-            accountService.findById(1L);
-        });
+        Account blockedAccount = new Account();
+        blockedAccount.setId(accountId);
+        blockedAccount.setBloqueada(true);
 
-        assertEquals("Conta não encontrada: 1", exception.getMessage());
+        when(accountRepository.findById(accountId)).thenReturn(Optional.of(blockedAccount));
+
+        AccountBlockedException exception = assertThrows(AccountBlockedException.class,
+                () -> accountService.deposit(accountId, amount));
+
+        assertEquals("A conta está bloqueada e não pode receber depósitos.", exception.getMessage());
     }
 
     @Test
-    public void testWithdrawThrowsInsufficientBalanceException() {
-        Account account = new Account();
-        account.setId(1L);
-        account.setSaldo(BigDecimal.valueOf(100));
+    void testWithdrawThrowsAccountBlockedException() {
+        Long accountId = 1L;
+        BigDecimal amount = BigDecimal.valueOf(100);
 
-        when(accountRepository.findById(1L)).thenReturn(Optional.of(account));
+        Account blockedAccount = new Account();
+        blockedAccount.setId(accountId);
+        blockedAccount.setBloqueada(true);
 
-        doThrow(new InsufficientBalanceException("Saldo insuficiente na conta")).when(transactionService).withdraw(1L, BigDecimal.valueOf(200));
+        when(accountRepository.findById(accountId)).thenReturn(Optional.of(blockedAccount));
 
-        Exception exception = assertThrows(InsufficientBalanceException.class, () -> {
-            accountService.withdraw(1L, BigDecimal.valueOf(200));
-        });
-
-        assertEquals("Saldo insuficiente na conta", exception.getMessage());
-    }
-
-    @Test
-    public void testWithdrawThrowsAccountBlockedException() {
-        Account account = new Account();
-        account.setId(1L);
-        account.setBloqueada(true);
-
-        when(accountRepository.findById(1L)).thenReturn(Optional.of(account));
-
-        doThrow(new AccountBlockedException("A conta está bloqueada")).when(transactionService).withdraw(1L, BigDecimal.valueOf(100));
-
-        Exception exception = assertThrows(AccountBlockedException.class, () -> {
-            accountService.withdraw(1L, BigDecimal.valueOf(100));
-        });
+        AccountBlockedException exception = assertThrows(AccountBlockedException.class,
+                () -> accountService.withdraw(accountId, amount));
 
         assertEquals("A conta está bloqueada e não pode realizar saques.", exception.getMessage());
     }
 
     @Test
-    public void testWithdrawThrowsWithdrawalLimitExceededException() {
+    void testWithdrawThrowsInsufficientBalanceException() {
+        Long accountId = 1L;
+        BigDecimal amount = BigDecimal.valueOf(100);
+
         Account account = new Account();
-        account.setId(1L);
-        account.setSaldo(BigDecimal.valueOf(500));
-        account.setLimiteDiarioSaque(BigDecimal.valueOf(100));
+        account.setId(accountId);
+        account.setSaldo(BigDecimal.valueOf(50));
 
-        when(accountRepository.findById(1L)).thenReturn(Optional.of(account));
+        when(accountRepository.findById(accountId)).thenReturn(Optional.of(account));
 
-        doThrow(new WithdrawalLimitExceededException("Limite diário de saque excedido")).when(transactionService).withdraw(1L, BigDecimal.valueOf(200));
+        InsufficientBalanceException exception = assertThrows(InsufficientBalanceException.class,
+                () -> accountService.withdraw(accountId, amount));
 
-        Exception exception = assertThrows(WithdrawalLimitExceededException.class, () -> {
-            accountService.withdraw(1L, BigDecimal.valueOf(200));
-        });
-
-        assertEquals("Limite diário de saque excedido", exception.getMessage());
+        assertEquals("Saldo insuficiente!", exception.getMessage());
     }
 
+    @Test
+    void testWithdrawThrowsWithdrawalLimitExceededException() {
+        Long accountId = 1L;
+        BigDecimal amount = BigDecimal.valueOf(3000);
+
+        Account account = new Account();
+        account.setId(accountId);
+        account.setSaldo(BigDecimal.valueOf(5000));
+        account.setLimiteDiarioSaque(BigDecimal.valueOf(1000));
+
+        when(accountRepository.findById(accountId)).thenReturn(Optional.of(account));
+
+        WithdrawalLimitExceededException exception = assertThrows(WithdrawalLimitExceededException.class,
+                () -> accountService.withdraw(accountId, amount));
+
+        assertEquals("O valor total de saques do dia excede o limite diário permitido.", exception.getMessage());
+    }
+
+    @Test
+    void testWithdrawExceedsDailyLimitWithMultipleTransactions() {
+        Long accountId = 1L;
+        Account account = new Account();
+        account.setId(accountId);
+        account.setSaldo(BigDecimal.valueOf(5000));
+        account.setLimiteDiarioSaque(BigDecimal.valueOf(1000));
+
+        when(accountRepository.findById(accountId)).thenReturn(Optional.of(account));
+
+        Transaction previousTransaction1 = new Transaction();
+        previousTransaction1.setTipo(TransactionType.SAQUE);
+        previousTransaction1.setValor(BigDecimal.valueOf(600));
+
+        Transaction previousTransaction2 = new Transaction();
+        previousTransaction2.setTipo(TransactionType.SAQUE);
+        previousTransaction2.setValor(BigDecimal.valueOf(400));
+
+        when(transactionRepository.findByContaAndDataHoraBetween(any(Account.class), any(LocalDateTime.class), any(LocalDateTime.class)))
+                .thenReturn(List.of(previousTransaction1, previousTransaction2));
+
+        BigDecimal newWithdrawalAmount = BigDecimal.valueOf(200);
+
+        WithdrawalLimitExceededException exception = assertThrows(WithdrawalLimitExceededException.class, () -> {
+            accountService.withdraw(accountId, newWithdrawalAmount);
+        });
+
+        assertEquals("O valor total de saques do dia excede o limite diário permitido.", exception.getMessage());
+    }
+
+    @Test
+    void testGetTransactionsByPeriod() {
+        Long accountId = 1L;
+        LocalDateTime start = LocalDateTime.now().minusDays(5);
+        LocalDateTime end = LocalDateTime.now();
+
+        Account account = new Account();
+        account.setId(accountId);
+
+        Transaction transaction1 = new Transaction();
+        transaction1.setConta(account);
+        transaction1.setValor(BigDecimal.valueOf(100));
+        transaction1.setTipo(TransactionType.DEPOSITO);
+        transaction1.setDataHora(start.plusDays(1));
+
+        Transaction transaction2 = new Transaction();
+        transaction2.setConta(account);
+        transaction2.setValor(BigDecimal.valueOf(200));
+        transaction2.setTipo(TransactionType.SAQUE);
+        transaction2.setDataHora(end.minusDays(1));
+
+        when(accountRepository.findById(accountId)).thenReturn(Optional.of(account));
+        when(transactionRepository.findByContaAndDataHoraBetween(account, start, end))
+                .thenReturn(List.of(transaction1, transaction2));
+
+        List<Transaction> transactions = accountService.getTransactionsByPeriod(accountId, start, end);
+
+        assertEquals(2, transactions.size());
+        verify(transactionRepository, times(1)).findByContaAndDataHoraBetween(account, start, end);
+    }
 
 }

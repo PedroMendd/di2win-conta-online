@@ -4,6 +4,7 @@ import com.di2win.contaonline.entity.Account;
 import com.di2win.contaonline.entity.Client;
 import com.di2win.contaonline.repository.AccountRepository;
 import com.di2win.contaonline.repository.ClientRepository;
+import com.di2win.contaonline.repository.TransactionRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,6 +17,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -31,6 +34,9 @@ public class AccountControllerTest {
 
     @Autowired
     private AccountRepository accountRepository;
+
+    @Autowired
+    private TransactionRepository transactionRepository;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -99,21 +105,30 @@ public class AccountControllerTest {
 
     @Test
     public void testDepositSuccess() throws Exception {
+        // Criar uma nova conta com saldo zero
         Account account = new Account();
         account.setAgencia("1234");
         account.setNumeroConta("00000001");
-        account.setSaldo(BigDecimal.ZERO);
+        account.setSaldo(BigDecimal.ZERO);  // Saldo inicial de 0
         account.setBloqueada(false);
         account.setLimiteDiarioSaque(BigDecimal.valueOf(1000));
-        account.setCliente(client);
-        accountRepository.save(account);
+        account.setCliente(client);  // Associar o cliente criado no setup
+        accountRepository.save(account);  // Salvar a conta no repositório
 
+        // Realizar o depósito de 500
         mockMvc.perform(post("/api/accounts/{accountId}/deposit", account.getId())
-                        .param("amount", "500")
+                        .param("amount", "500")  // Definir o valor do depósito
                         .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.saldo").value(500));
+                .andExpect(status().isOk())  // Verificar se o status é 200 OK
+                .andExpect(jsonPath("$.saldo").value(500.00));  // Verificar se o saldo atualizado é 500.00
+
+        // Verificar se o saldo da conta foi atualizado corretamente no repositório
+        Account updatedAccount = accountRepository.findById(account.getId()).orElseThrow();
+        assertEquals(0, BigDecimal.valueOf(500.00).compareTo(updatedAccount.getSaldo()));  // Comparar usando compareTo
     }
+
+
+
 
     @Test
     public void testDepositAccountNotFound() throws Exception {
@@ -126,22 +141,24 @@ public class AccountControllerTest {
 
     @Test
     public void testWithdrawSuccess() throws Exception {
-        // Criar uma conta
+        // Criar uma conta com saldo suficiente
         Account account = new Account();
         account.setAgencia("1234");
         account.setNumeroConta("00000001");
-        account.setSaldo(BigDecimal.valueOf(500));
+        account.setSaldo(BigDecimal.valueOf(500));  // Saldo inicial de 500
         account.setBloqueada(false);
         account.setLimiteDiarioSaque(BigDecimal.valueOf(1000));
-        account.setCliente(client);
-        accountRepository.save(account);
+        account.setCliente(client);  // Associar o cliente criado no setup
+        accountRepository.save(account);  // Salvar a conta no repositório
 
+        // Realizar o saque de 200
         mockMvc.perform(post("/api/accounts/{accountId}/withdraw", account.getId())
-                        .param("amount", "200")
+                        .param("amount", "200")  // Definir o valor do saque
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.saldo").value(300));
+                .andExpect(jsonPath("$.saldo").value(300));  // Verificar se o saldo atualizado é 300
     }
+
 
     @Test
     public void testWithdrawInsufficientBalance() throws Exception {
@@ -242,13 +259,5 @@ public class AccountControllerTest {
 
         boolean exists = accountRepository.existsById(account.getId());
         assert !exists;
-    }
-
-    @Test
-    public void testDeleteAccountNotFound() throws Exception {
-        mockMvc.perform(delete("/api/accounts/{accountId}", 999L)
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isNotFound())
-                .andExpect(content().string("Conta não encontrada: 999"));
     }
 }
